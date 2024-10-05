@@ -1,6 +1,11 @@
-import 'package:climate_virtualization/ui/SearchPage.dart';
+import 'dart:convert';
+
+import 'package:WeatherApp/ui/SearchPage.dart';
+import 'package:WeatherApp/utils/weather_icon_example.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:weather_icons/weather_icons.dart';
+import 'package:http/http.dart' as http;
 
 void main() => runApp(const MyApp());
 
@@ -23,22 +28,27 @@ class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
 
   @override
-  _MapScreenState createState() => _MapScreenState();
+  MapScreenState createState() => MapScreenState();
 }
 
-class _MapScreenState extends State<MapScreen> {
+class MapScreenState extends State<MapScreen> {
   late GoogleMapController mapController;
-  LatLng _center = const LatLng(4.0511, 9.7085); // Initial map center
+  final LatLng _center = const LatLng(4.0511, 9.7085); // Initial map center
   bool _isExpanded = false; // Variable to manage the bottom sheet state
   int _selectedIndex = 0; // Track the selected tab index
-  bool _isBottomNavVisible = false; // Variable to manage BottomNavigationBar visibility
-  late DraggableScrollableController _scrollableController; // DraggableScrollableController
+  bool _isBottomNavVisible =
+      false; // Variable to manage BottomNavigationBar visibility
+  late DraggableScrollableController
+      _scrollableController; // DraggableScrollableController
+
+  String _selectedOption = 'Temperature'; // Option par défaut
 
   // Variables to store location name, temperature, and weather conditions
   String _locationName = "Aucun lieu sélectionné";
   double _temperature = 0.0;
   String _conditionText = ""; // Example condition text
-  Set<Marker> _markers = {}; // Set of markers to display on the map
+  final Set<Marker> _markers = {}; // Set of markers to display on the map
+  Map<String, dynamic>? _forecastData;
 
   @override
   void initState() {
@@ -66,33 +76,37 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
-  // Navigation to the search page, expand DraggableScrollableSheet upon return
   Future<void> _navigateToSearchPage() async {
     final result = await Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => SearchPage()),
+      MaterialPageRoute(builder: (context) => const SearchPage()),
     );
 
     if (result != null) {
       setState(() {
-        _locationName = result['location']; // Location name
-        _temperature = result['temperature']; // Temperature
+        _locationName = result['location']; // Nom de la localisation
+        _temperature = result['temperature']; // Température
         _conditionText = result['conditionText'];
 
-        LatLng coordinates = result['coordinates']; // Coordinates from result
+        LatLng coordinates = result['coordinates']; // Coordonnées du résultat
         mapController.animateCamera(
-          CameraUpdate.newLatLng(coordinates), // Center the map to the coordinates
+          CameraUpdate.newLatLng(
+              coordinates), // Centrer la carte sur les coordonnées
         );
 
-        // Automatically expand the DraggableScrollableSheet
+        // Vider les anciens marqueurs avant d'en ajouter un nouveau
+        _markers.clear(); // Clear previous markers
+
+        // Ajouter un marqueur à la nouvelle localisation
+        _addMarker(coordinates, _locationName);
+
+        // Automatiquement étendre le DraggableScrollableSheet
         _scrollableController.animateTo(
-          0.4, // Expand to the maximum size
+          0.4, // Étendre à la taille maximale
           duration: const Duration(milliseconds: 500),
           curve: Curves.easeInOut,
         );
-
-        // Add a marker at the selected location
-        _addMarker(coordinates, _locationName);
+        _fetchWeatherForecast(coordinates.latitude, coordinates.longitude);
       });
     }
   }
@@ -103,6 +117,47 @@ class _MapScreenState extends State<MapScreen> {
       _selectedIndex = index;
     });
     // Add logic for different navigation items (Map, Info, Settings)
+  }
+
+  // Méthode pour obtenir l'abréviation des jours de la semaine
+  String _getDayAbbreviation(int weekday) {
+    switch (weekday) {
+      case 1:
+        return 'Mon';
+      case 2:
+        return 'Tue';
+      case 3:
+        return 'Wed';
+      case 4:
+        return 'Thu';
+      case 5:
+        return 'Fri';
+      case 6:
+        return 'Sat';
+      case 7:
+        return 'Sun';
+      default:
+        return '';
+    }
+  }
+
+// Fonction pour faire la requête
+  Future<void> _fetchWeatherForecast(double latitude, double longitude) async {
+    const String weatherAPIApiKey = '6a5fdf1096094ee3812233148240310';
+    final String url =
+        'http://api.weatherapi.com/v1/forecast.json?key=$weatherAPIApiKey&q=$latitude,$longitude&days=5&aqi=no&alerts=no';
+
+    try {
+      final response = await http.get(Uri.parse(url));
+
+      if (response.statusCode == 200) {
+        setState(() {
+          _forecastData = json.decode(response.body); // Stocker la réponse JSON
+        });
+      } else {
+        throw Exception('Failed to load forecast');
+      }
+    } catch (e) {}
   }
 
   @override
@@ -134,8 +189,12 @@ class _MapScreenState extends State<MapScreen> {
                     onPressed: () {
                       mapController.animateCamera(CameraUpdate.zoomIn());
                     },
-                    backgroundColor: isLightTheme ? Colors.white : Colors.grey[800] ?? Colors.grey,
-                    child: Icon(Icons.add, size: 20, color: isLightTheme ? Colors.black : Colors.white),
+                    backgroundColor: isLightTheme
+                        ? Colors.white
+                        : Colors.grey[800] ?? Colors.grey,
+                    child: Icon(Icons.add,
+                        size: 20,
+                        color: isLightTheme ? Colors.black : Colors.white),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -146,8 +205,12 @@ class _MapScreenState extends State<MapScreen> {
                     onPressed: () {
                       mapController.animateCamera(CameraUpdate.zoomOut());
                     },
-                    backgroundColor: isLightTheme ? Colors.white : Colors.grey[800] ?? Colors.grey,
-                    child: Icon(Icons.remove, size: 20, color: isLightTheme ? Colors.black : Colors.white),
+                    backgroundColor: isLightTheme
+                        ? Colors.white
+                        : Colors.grey[800] ?? Colors.grey,
+                    child: Icon(Icons.remove,
+                        size: 20,
+                        color: isLightTheme ? Colors.black : Colors.white),
                   ),
                 ),
               ],
@@ -178,61 +241,406 @@ class _MapScreenState extends State<MapScreen> {
                     });
                     return true;
                   },
-                  child: ListView(
+                  child: SingleChildScrollView(
                     controller: scrollController,
-                    children: [
-                      if (_isExpanded)
-                        GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _isExpanded = !_isExpanded;
-                            });
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 4.0),
-                            child: Container(
-                              alignment: Alignment.center,
-                              child: Icon(
-                                Icons.drag_handle,
-                                color: isLightTheme ? Colors.black : Colors.white,
+                    child: Column(
+                      children: [
+                        if (_isExpanded)
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _isExpanded = !_isExpanded;
+                              });
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 4.0),
+                              child: Container(
+                                alignment: Alignment.center,
+                                child: Icon(
+                                  Icons.drag_handle,
+                                  color: isLightTheme
+                                      ? Colors.black
+                                      : Colors.white,
+                                ),
                               ),
                             ),
                           ),
+                        Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Text(
+                                _locationName,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.normal,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    '${_temperature.toStringAsFixed(1)} °C',
+                                    style: const TextStyle(
+                                      fontSize: 50,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  WeatherIconExample(
+                                      conditionText: _conditionText),
+                                ],
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                _conditionText,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
                         ),
-                      Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center, // Center the content
+                        const SizedBox(height: 10),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              _locationName,
-                              style: const TextStyle(
-                                fontSize: 18, // Smaller font size for the location name
-                                fontWeight: FontWeight.normal,
+                            Padding(
+                              padding: const EdgeInsets.only(left: 20.0),
+                              child: Text(
+                                "Daily",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                  color: isLightTheme
+                                      ? Colors.black87
+                                      : Colors.white70,
+                                ),
                               ),
                             ),
-                            const SizedBox(height: 10), // Small space between location and temperature
-                            Text(
-                              '${_temperature.toStringAsFixed(1)} °C',
-                              style: const TextStyle(
-                                fontSize: 50, // Larger font size for the temperature
-                                fontWeight: FontWeight.bold,
-                              ),
-                              textAlign: TextAlign.center, // Center the temperature
-                            ),
-                            const SizedBox(height: 5), // Small space between temperature and conditions
-                            Text(
-                              _conditionText, // Weather condition text
-                              style: const TextStyle(
-                                fontSize: 16, // Smaller font size for the condition text
-                                fontStyle: FontStyle.italic,
-                              ),
-                              textAlign: TextAlign.center, // Center the condition text
+                            DropdownButton<String>(
+                              value: _selectedOption,
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'Temperature',
+                                  child: Row(
+                                    children: [
+                                      Icon(WeatherIcons.thermometer),
+                                      SizedBox(width: 8),
+                                      Text('Temperature'),
+                                    ],
+                                  ),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'Wind speed',
+                                  child: Row(
+                                    children: [
+                                      Icon(WeatherIcons.strong_wind),
+                                      SizedBox(width: 8),
+                                      Text('Wind speed'),
+                                    ],
+                                  ),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'Humidity',
+                                  child: Row(
+                                    children: [
+                                      Icon(WeatherIcons.humidity),
+                                      SizedBox(width: 8),
+                                      Text('Humidity'),
+                                    ],
+                                  ),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'Precipitation',
+                                  child: Row(
+                                    children: [
+                                      Icon(WeatherIcons.rain),
+                                      SizedBox(width: 8),
+                                      Text('Precipitation'),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                              dropdownColor: isLightTheme
+                                  ? Colors.white
+                                  : Colors.grey[800],
+                              onChanged: (String? newValue) {
+                                setState(() {
+                                  _selectedOption = newValue ?? 'Temperature';
+                                });
+                              },
+                              selectedItemBuilder: (BuildContext context) {
+                                return [
+                                  const Row(
+                                    children: [
+                                      Icon(WeatherIcons.thermometer),
+                                      SizedBox(width: 8),
+                                      Text('Temperature'),
+                                    ],
+                                  ),
+                                  const Row(
+                                    children: [
+                                      Icon(WeatherIcons.strong_wind),
+                                      SizedBox(width: 8),
+                                      Text('Wind speed'),
+                                    ],
+                                  ),
+                                  const Row(
+                                    children: [
+                                      Icon(WeatherIcons.humidity),
+                                      SizedBox(width: 8),
+                                      Text('Humidity'),
+                                    ],
+                                  ),
+                                  const Row(
+                                    children: [
+                                      Icon(WeatherIcons.rain),
+                                      SizedBox(width: 8),
+                                      Text('Precipitations'),
+                                    ],
+                                  ),
+                                ];
+                              },
+                              underline: const SizedBox.shrink(),
                             ),
                           ],
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 20),
+                        Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: _forecastData == null ||
+                                    _forecastData?['forecast'] == null ||
+                                    _forecastData?['forecast']['forecastday'] ==
+                                        null
+                                ? [
+                                    Padding(
+                                      padding: const EdgeInsets.all(16.0),
+                                      child: Text(
+                                        "Aucune donnée disponible",
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: isLightTheme
+                                              ? Colors.black
+                                              : Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ]
+                                : List.generate(
+                                    _forecastData?['forecast']['forecastday']
+                                        .length,
+                                    (index) {
+                                      final dayData = _forecastData?['forecast']
+                                          ['forecastday'][index];
+
+                                      // Convertir la date string en DateTime
+                                      final day =
+                                          DateTime.parse(dayData["date"]);
+
+                                      return Column(
+                                        children: [
+                                          ListTile(
+                                            title: Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.start,
+                                              children: [
+                                                Container(
+                                                  width: 45,
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(
+                                                        index == 0
+                                                            ? "Today"
+                                                            : _getDayAbbreviation(
+                                                                day.weekday),
+                                                        style: const TextStyle(
+                                                          fontSize: 14,
+                                                        ),
+                                                      ),
+                                                      Text(
+                                                        '${day.day}',
+                                                        style: const TextStyle(
+                                                          fontSize: 12,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 5),
+                                                // Réduire l'espacement
+                                                Column(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.center,
+                                                  // Centre verticalement tout le contenu de la colonne
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.center,
+                                                  // Centre horizontalement tout le contenu de la colonne
+                                                  children: [
+                                                    Row(
+                                                      mainAxisAlignment:
+                                                          MainAxisAlignment
+                                                              .center,
+                                                      // Centre les icônes horizontalement
+                                                      children: [
+                                                        Column(
+                                                          children: [
+                                                            Container(
+                                                              width: 50,
+                                                              // Largeur fixe pour l'icône
+                                                              child:
+                                                                  WeatherIconExample(
+                                                                conditionText:
+                                                                    dayData['day']
+                                                                            [
+                                                                            'condition']
+                                                                        [
+                                                                        'text'],
+                                                              ),
+                                                            ),
+                                                            const SizedBox(
+                                                                height: 5),
+                                                            // Espacement entre l'icône et le texte
+                                                            Container(
+                                                              width: 150,
+                                                              // Largeur fixe pour le texte
+                                                              child: Text(
+                                                                dayData['day'][
+                                                                        'condition']
+                                                                    ['text'],
+                                                                textAlign:
+                                                                    TextAlign
+                                                                        .center,
+                                                                // Centre le texte
+                                                                style:
+                                                                    const TextStyle(
+                                                                  fontSize:
+                                                                      13, // Réduction de la taille du texte
+                                                                ),
+                                                                overflow:
+                                                                    TextOverflow
+                                                                        .ellipsis,
+                                                                // Affiche des points de suspension si le texte déborde
+                                                                maxLines:
+                                                                    1, // Limite le texte à une seule ligne
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ],
+                                                ),
+
+                                                const Spacer(),
+                                                // Afficher les températures min et max
+                                                Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.end,
+                                                  children: [
+                                                    if (_selectedOption ==
+                                                        'Temperature') ...[
+                                                      // Affichage des températures min et max
+                                                      Container(
+                                                        constraints:
+                                                            BoxConstraints(
+                                                                maxWidth: 200),
+                                                        // Set a max width to constrain the text
+                                                        child: Text(
+                                                          '${dayData['day']['mintemp_c']}/${dayData['day']['maxtemp_c']} °C',
+                                                          style:
+                                                              const TextStyle(
+                                                            fontSize: 14,
+                                                          ),
+                                                          textAlign:
+                                                              TextAlign.end,
+                                                          overflow: TextOverflow
+                                                              .ellipsis, // Add ellipsis if overflow occurs
+                                                        ),
+                                                      ),
+                                                    ] else if (_selectedOption ==
+                                                        'Wind speed') ...[
+                                                      // Affichage de la vitesse moyenne du vent
+                                                      Container(
+                                                        constraints:
+                                                            BoxConstraints(
+                                                                maxWidth: 200),
+                                                        child: Text(
+                                                          'Vent: ${dayData['day']['maxwind_kph']} km/h',
+                                                          style:
+                                                              const TextStyle(
+                                                            fontSize: 12,
+                                                          ),
+                                                          textAlign:
+                                                              TextAlign.end,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                        ),
+                                                      ),
+                                                    ] else if (_selectedOption ==
+                                                        'Humidity') ...[
+                                                      // Affichage de l'humidité moyenne
+                                                      Container(
+                                                        constraints:
+                                                            BoxConstraints(
+                                                                maxWidth: 200),
+                                                        child: Text(
+                                                          'Humidité: ${dayData['day']['avghumidity']} %',
+                                                          style:
+                                                              const TextStyle(
+                                                            fontSize: 12,
+                                                          ),
+                                                          textAlign:
+                                                              TextAlign.end,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                        ),
+                                                      ),
+                                                    ] else if (_selectedOption ==
+                                                        'Precipitation') ...[
+                                                      // Affichage des précipitations totales
+                                                      Container(
+                                                        constraints:
+                                                            BoxConstraints(
+                                                                maxWidth: 200),
+                                                        child: Text(
+                                                          'Précip: ${dayData['day']['totalprecip_mm']} mm',
+                                                          style:
+                                                              const TextStyle(
+                                                            fontSize: 12,
+                                                          ),
+                                                          textAlign:
+                                                              TextAlign.end,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const Divider(),
+                                          // Ligne de séparation entre chaque jour
+                                        ],
+                                      );
+                                    },
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -247,8 +655,11 @@ class _MapScreenState extends State<MapScreen> {
               height: 40,
               child: FloatingActionButton(
                 onPressed: _navigateToSearchPage,
-                backgroundColor: isLightTheme ? Colors.white : Colors.grey[800] ?? Colors.grey,
-                child: Icon(Icons.search, color: isLightTheme ? Colors.black : Colors.white),
+                backgroundColor: isLightTheme
+                    ? Colors.white
+                    : Colors.grey[800] ?? Colors.grey,
+                child: Icon(Icons.search,
+                    color: isLightTheme ? Colors.black : Colors.white),
               ),
             ),
           ),
@@ -257,26 +668,29 @@ class _MapScreenState extends State<MapScreen> {
       // Bottom Navigation Bar
       bottomNavigationBar: _isBottomNavVisible
           ? BottomNavigationBar(
-        backgroundColor: isLightTheme ? Colors.white : Colors.grey[800] ?? Colors.grey,
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.map),
-            label: 'Map',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.info),
-            label: 'Info',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: isLightTheme ? Colors.black : Colors.white,
-        unselectedItemColor: isLightTheme ? Colors.grey[600] : Colors.grey[400],
-        onTap: _onItemTapped,
-      )
+              backgroundColor: isLightTheme
+                  ? Colors.white
+                  : Colors.grey[850]!.withOpacity(0.9),
+              items: const <BottomNavigationBarItem>[
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.settings),
+                  label: 'Settings',
+                ),
+
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.map),
+                  label: 'Map',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.info),
+                  label: 'Info',
+                ),
+
+              ],
+              currentIndex: _selectedIndex,
+              selectedItemColor: Colors.blue,
+              onTap: _onItemTapped,
+            )
           : null,
     );
   }
