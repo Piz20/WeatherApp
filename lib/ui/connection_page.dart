@@ -129,7 +129,7 @@ class _LoginPageState extends State<LoginPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  '© Laforge, Tous droits réservés', // Message de copyright
+                  '© Laforge 2024, All rights reserved', // Message de copyright
                   style: TextStyle(
                     color: Colors.grey, // Couleur du texte
                   ),

@@ -5,13 +5,14 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:weather_app/ui/connection_page.dart';
+import 'package:weather_app/ui/developper_info_page.dart';
 import 'package:weather_app/ui/search_page.dart';
+import 'package:weather_app/ui/user_info_page.dart';
 import 'package:weather_app/utils/weather_icon_example.dart';
 import 'package:weather_icons/weather_icons.dart';
 import 'package:http/http.dart' as http;
 
 import 'firebase_options.dart';
-
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,10 +28,14 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      theme: ThemeData.light(), // Thème clair
-      darkTheme: ThemeData.dark(), // Thème sombre
-      themeMode: ThemeMode.system, // Adapte le thème au mode système
-      home: AuthChecker(), // Vérification de l'authentification
+      theme: ThemeData.light(),
+      // Thème clair
+      darkTheme: ThemeData.dark(),
+      // Thème sombre
+      themeMode: ThemeMode.system,
+      // Adapte le thème au mode système
+      home: AuthChecker(),
+      // Vérification de l'authentification
       debugShowCheckedModeBanner: false, // Masque le bandeau de debug
     );
   }
@@ -58,7 +63,8 @@ class AuthChecker extends StatelessWidget {
 
           // Vérification si l'utilisateur existe encore
           return FutureBuilder<User?>(
-            future: _checkUserExists(user.uid), // Vérifiez si l'utilisateur existe
+            future: _checkUserExists(user.uid),
+            // Vérifiez si l'utilisateur existe
             builder: (context, futureSnapshot) {
               if (futureSnapshot.connectionState == ConnectionState.waiting) {
                 return Center(child: CircularProgressIndicator());
@@ -105,10 +111,11 @@ class MapScreen extends StatefulWidget {
 }
 
 class MapScreenState extends State<MapScreen> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   late GoogleMapController mapController;
   final LatLng _center = const LatLng(4.0511, 9.7085); // Initial map center
   bool _isExpanded = false; // Variable to manage the bottom sheet state
-  int _selectedIndex = 0; // Track the selected tab index
+  int _selectedIndex = 1; // Track the selected tab index
   bool _isBottomNavVisible =
       false; // Variable to manage BottomNavigationBar visibility
   late DraggableScrollableController
@@ -150,6 +157,8 @@ class MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _navigateToSearchPage() async {
+    _selectedIndex = 1;
+
     final result = await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const SearchPage()),
@@ -184,12 +193,25 @@ class MapScreenState extends State<MapScreen> {
     }
   }
 
-  // Handle navigation item taps
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
+
+      if (index == 0) {
+        // Navigate to the user info page when index 1 is selected
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) => UserInfoPage()), // Navigate to the new page
+        );
+      } else if (index == 2) {
+        // Navigate to the developer info page when index 2 is selected
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => DeveloperInfoPage()),
+        );
+      }
     });
-    // Add logic for different navigation items (Map, Info, Settings)
   }
 
   // Méthode pour obtenir l'abréviation des jours de la semaine
@@ -231,6 +253,12 @@ class MapScreenState extends State<MapScreen> {
         throw Exception('Failed to load forecast');
       }
     } catch (e) {}
+  }
+
+  @override
+  void dispose() {
+    _scrollableController.dispose(); // Libération du contrôleur
+    super.dispose();
   }
 
   @override
@@ -496,7 +524,7 @@ class MapScreenState extends State<MapScreen> {
                                     Padding(
                                       padding: const EdgeInsets.all(16.0),
                                       child: Text(
-                                        "Aucune donnée disponible",
+                                        "No availabe data",
                                         style: TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.bold,
@@ -649,7 +677,7 @@ class MapScreenState extends State<MapScreen> {
                                                             const BoxConstraints(
                                                                 maxWidth: 200),
                                                         child: Text(
-                                                          'Vent: ${dayData['day']['maxwind_kph']} km/h',
+                                                          'Wind: ${dayData['day']['maxwind_kph']} km/h',
                                                           style:
                                                               const TextStyle(
                                                             fontSize: 12,
@@ -668,7 +696,7 @@ class MapScreenState extends State<MapScreen> {
                                                             const BoxConstraints(
                                                                 maxWidth: 200),
                                                         child: Text(
-                                                          'Humidité: ${dayData['day']['avghumidity']} %',
+                                                          'Humidity: ${dayData['day']['avghumidity']} %',
                                                           style:
                                                               const TextStyle(
                                                             fontSize: 12,
