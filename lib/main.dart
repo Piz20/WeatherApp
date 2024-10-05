@@ -1,14 +1,17 @@
 import 'dart:convert';
 
-import 'package:WeatherApp/ui/search_page.dart';
-import 'package:WeatherApp/utils/weather_icon_example.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:weather_app/ui/connection_page.dart';
+import 'package:weather_app/ui/search_page.dart';
+import 'package:weather_app/utils/weather_icon_example.dart';
 import 'package:weather_icons/weather_icons.dart';
 import 'package:http/http.dart' as http;
 
 import 'firebase_options.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,12 +27,73 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      theme: ThemeData.light(),
-      darkTheme: ThemeData.dark(),
-      themeMode: ThemeMode.system,
-      home: const MapScreen(),
-      debugShowCheckedModeBanner: false,
+      theme: ThemeData.light(), // Thème clair
+      darkTheme: ThemeData.dark(), // Thème sombre
+      themeMode: ThemeMode.system, // Adapte le thème au mode système
+      home: AuthChecker(), // Vérification de l'authentification
+      debugShowCheckedModeBanner: false, // Masque le bandeau de debug
     );
+  }
+}
+
+// Widget pour vérifier l'état d'authentification
+class AuthChecker extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          // Affiche un indicateur de chargement pendant la vérification
+          return Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        // Vérifiez si l'utilisateur est connecté
+        if (snapshot.hasData) {
+          final User user = snapshot.data!;
+
+          // Vérification si l'utilisateur existe encore
+          return FutureBuilder<User?>(
+            future: _checkUserExists(user.uid), // Vérifiez si l'utilisateur existe
+            builder: (context, futureSnapshot) {
+              if (futureSnapshot.connectionState == ConnectionState.waiting) {
+                return Center(child: CircularProgressIndicator());
+              }
+
+              if (futureSnapshot.hasError || futureSnapshot.data == null) {
+                // L'utilisateur a été supprimé, déconnexion
+                FirebaseAuth.instance.signOut();
+                return LoginPage(); // Retournez à la page de connexion
+              }
+
+              // L'utilisateur existe toujours
+              return MapScreen(); // Affichez la MapScreen
+            },
+          );
+        } else {
+          // Si l'utilisateur n'est pas connecté, afficher la page de connexion
+          return LoginPage();
+        }
+      },
+    );
+  }
+
+  Future<User?> _checkUserExists(String uid) async {
+    try {
+      // Essaye de récupérer les données de l'utilisateur pour vérifier s'il existe
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user != null && user.uid == uid) {
+        return user;
+      }
+    } catch (e) {
+      // Si une erreur se produit, cela peut signifier que l'utilisateur a été supprimé
+      print('User not found: $e');
+    }
+    return null; // L'utilisateur n'existe pas
   }
 }
 

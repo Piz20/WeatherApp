@@ -1,0 +1,7 @@
+<!-- res/values-night/colors.xml -->
+<resources>
+    <color name="splash_background">#000000</color> <!-- Couleur de fond pour le thème sombre -->
+    <color name="splash_image">#FFFFFF</color> <!-- Couleur de l'image pour le thème sombre -->
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+</resources>
