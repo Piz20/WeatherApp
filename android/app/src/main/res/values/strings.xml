@@ -1,7 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="facebook_app_id">216262704848222</string>
-    <string name="fb_login_protocol_scheme">fb216262704848222</string>
-    <string name="app_name">Share</string>
-    <string name="facebook_client_token">123aec6fa1dea2eb517846154173ac7c</string>
+    <string name="app_name">WeatherApp</string>
 </resources>

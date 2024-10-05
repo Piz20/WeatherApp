@@ -1,13 +1,22 @@
 import 'dart:convert';
 
-import 'package:WeatherApp/ui/SearchPage.dart';
+import 'package:WeatherApp/ui/search_page.dart';
 import 'package:WeatherApp/utils/weather_icon_example.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:weather_icons/weather_icons.dart';
 import 'package:http/http.dart' as http;
 
-void main() => runApp(const MyApp());
+import 'firebase_options.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  runApp(MyApp());
+}
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -452,7 +461,7 @@ class MapScreenState extends State<MapScreen> {
                                               mainAxisAlignment:
                                                   MainAxisAlignment.start,
                                               children: [
-                                                Container(
+                                                SizedBox(
                                                   width: 45,
                                                   child: Column(
                                                     crossAxisAlignment:
@@ -495,7 +504,7 @@ class MapScreenState extends State<MapScreen> {
                                                       children: [
                                                         Column(
                                                           children: [
-                                                            Container(
+                                                            SizedBox(
                                                               width: 50,
                                                               // Largeur fixe pour l'icône
                                                               child:
@@ -511,7 +520,7 @@ class MapScreenState extends State<MapScreen> {
                                                             const SizedBox(
                                                                 height: 5),
                                                             // Espacement entre l'icône et le texte
-                                                            Container(
+                                                            SizedBox(
                                                               width: 150,
                                                               // Largeur fixe pour le texte
                                                               child: Text(
@@ -553,7 +562,7 @@ class MapScreenState extends State<MapScreen> {
                                                       // Affichage des températures min et max
                                                       Container(
                                                         constraints:
-                                                            BoxConstraints(
+                                                            const BoxConstraints(
                                                                 maxWidth: 200),
                                                         // Set a max width to constrain the text
                                                         child: Text(
@@ -573,7 +582,7 @@ class MapScreenState extends State<MapScreen> {
                                                       // Affichage de la vitesse moyenne du vent
                                                       Container(
                                                         constraints:
-                                                            BoxConstraints(
+                                                            const BoxConstraints(
                                                                 maxWidth: 200),
                                                         child: Text(
                                                           'Vent: ${dayData['day']['maxwind_kph']} km/h',
@@ -592,7 +601,7 @@ class MapScreenState extends State<MapScreen> {
                                                       // Affichage de l'humidité moyenne
                                                       Container(
                                                         constraints:
-                                                            BoxConstraints(
+                                                            const BoxConstraints(
                                                                 maxWidth: 200),
                                                         child: Text(
                                                           'Humidité: ${dayData['day']['avghumidity']} %',
@@ -611,7 +620,7 @@ class MapScreenState extends State<MapScreen> {
                                                       // Affichage des précipitations totales
                                                       Container(
                                                         constraints:
-                                                            BoxConstraints(
+                                                            const BoxConstraints(
                                                                 maxWidth: 200),
                                                         child: Text(
                                                           'Précip: ${dayData['day']['totalprecip_mm']} mm',
@@ -676,7 +685,6 @@ class MapScreenState extends State<MapScreen> {
                   icon: Icon(Icons.settings),
                   label: 'Settings',
                 ),
-
                 BottomNavigationBarItem(
                   icon: Icon(Icons.map),
                   label: 'Map',
@@ -685,7 +693,6 @@ class MapScreenState extends State<MapScreen> {
                   icon: Icon(Icons.info),
                   label: 'Info',
                 ),
-
               ],
               currentIndex: _selectedIndex,
               selectedItemColor: Colors.blue,

@@ -26,6 +26,7 @@ class WeatherIconExample extends StatelessWidget {
       case 'overcast':
         return WeatherIcons.cloud;
       case 'partly cloudy':
+        return WeatherIcons.cloudy;
       case 'mostly cloudy':
         return WeatherIcons.cloudy;
       case 'light rain':
