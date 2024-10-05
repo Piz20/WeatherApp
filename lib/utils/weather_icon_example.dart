@@ -40,6 +40,9 @@ class WeatherIconExample extends StatelessWidget {
         return WeatherIcons.rain;
       case 'fog':
         return WeatherIcons.fog;
+      case 'snow':
+      case 'moderate snow':
+        return WeatherIcons.snow;
       case 'mist': // Nouvelle condition pour 'mist'
         return WeatherIcons.sprinkle; // Icône pour 'mist'
       case 'moderate rain': // Nouvelle condition pour 'moderate rain'

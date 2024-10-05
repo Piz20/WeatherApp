@@ -44,7 +44,7 @@ class _SearchPageState extends State<SearchPage> {
     });
   }
 
-  Future<Map<String, dynamic>> _fetchCurrentWeather(
+  Future<Map<String, dynamic>> fetchCurrentWeather(
       double latitude, double longitude) async {
     final String url =
         'http://api.weatherapi.com/v1/current.json?key=$_weatherAPIApiKey&q=$latitude,$longitude';
@@ -193,7 +193,7 @@ class _SearchPageState extends State<SearchPage> {
 
                           // Récupérer la météo incluant température, condition et icône
                           Map<String, dynamic> weatherData =
-                              await _fetchCurrentWeather(latitude, longitude);
+                              await fetchCurrentWeather(latitude, longitude);
 
                           Navigator.pop(context, {
                             'location': locationName,

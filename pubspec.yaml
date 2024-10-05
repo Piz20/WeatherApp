@@ -29,6 +29,9 @@ environment:
 # versions available, run `flutter pub outdated`.
 dependencies:
   google_maps_flutter: ^2.9.0
+  flutter_map_heatmap: ^0.0.7
+  geocoding: ^3.0.0
+  geolocator: ^13.0.1
   http: ^1.2.2
   weather_icons: ^3.0.0
 

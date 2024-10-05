@@ -1,4 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Permissions for accessing the Internet (required for in-app updates and API calls) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Permissions for accessing the current location -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- Optional: Permissions for checking network status -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <application
         android:label="WeatherApp"
         android:name="${applicationName}"

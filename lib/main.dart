@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:weather_app/ui/connection_page.dart';
 import 'package:weather_app/ui/developper_info_page.dart';
@@ -113,7 +115,8 @@ class MapScreen extends StatefulWidget {
 class MapScreenState extends State<MapScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   late GoogleMapController mapController;
-  final LatLng _center = const LatLng(4.0511, 9.7085); // Initial map center
+  late LatLng _currentPosition =
+      const LatLng(4.0511, 9.7085); // Initial map center
   bool _isExpanded = false; // Variable to manage the bottom sheet state
   int _selectedIndex = 1; // Track the selected tab index
   bool _isBottomNavVisible =
@@ -124,7 +127,7 @@ class MapScreenState extends State<MapScreen> {
   String _selectedOption = 'Temperature'; // Option par défaut
 
   // Variables to store location name, temperature, and weather conditions
-  String _locationName = "Aucun lieu sélectionné";
+  String _locationName = "No selected place";
   double _temperature = 0.0;
   String _conditionText = ""; // Example condition text
   final Set<Marker> _markers = {}; // Set of markers to display on the map
@@ -134,11 +137,54 @@ class MapScreenState extends State<MapScreen> {
   void initState() {
     super.initState();
     _scrollableController = DraggableScrollableController();
+    _getUserLocation();
   }
 
+  // Method to get the user's current location
+  Future<void> _getUserLocation() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    // Check if location services are enabled
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      // Location services are not enabled, show an error message
+      return Future.error('Location services are disabled.');
+    }
+
+    // Request location permissions
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.deniedForever) {
+        // Permissions are denied forever, handle accordingly
+        return Future.error('Location permissions are permanently denied.');
+      }
+      if (permission == LocationPermission.denied) {
+        // Permissions are denied, show an error message
+        return Future.error('Location permissions are denied.');
+      }
+    }
+
+    // Get the user's current location
+    Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high);
+
+    setState(() {
+      _currentPosition = LatLng(
+          position.latitude, position.longitude); // Update the current position
+    });
+
+    // Move the camera to the user's location
+    mapController.animateCamera(CameraUpdate.newLatLng(_currentPosition));
+  }
+
+  // Callback for when the map is created
   void _onMapCreated(GoogleMapController controller) {
     mapController = controller;
-  }
+    // Center the map on the user's current location
+    mapController.animateCamera(CameraUpdate.newLatLng(_currentPosition));
+    }
 
   // Function to add marker to the map at the specified coordinates
   void _addMarker(LatLng position, String title) {
@@ -154,6 +200,87 @@ class MapScreenState extends State<MapScreen> {
     setState(() {
       _markers.add(marker); // Add the marker to the set of markers
     });
+  }
+
+// Method to get the place name using reverse geocoding, using LatLng object
+  Future<void> _getPlaceName(LatLng position) async {
+    const String _mapboxAccessToken =
+        'pk.eyJ1IjoiZW1pbmlhbnQiLCJhIjoiY20xdXRuZmM5MDQyNDJrcGlrcTJuc3h6cCJ9.PKYZ401C7yYeyKTfd_jHCA';
+    final String url =
+        'https://api.mapbox.com/geocoding/v5/mapbox.places/${position.longitude},${position.latitude}.json?access_token=$_mapboxAccessToken';
+
+    try {
+      // Make an HTTP request to the OpenMapBox API
+      final response = await http.get(Uri.parse(url));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+
+        // Check if features are available in the response
+        if (data['features'] != null && data['features'].isNotEmpty) {
+          // Retrieve the first place name from the list
+          String placeName = data['features'][0]['place_name'];
+
+          // Automatiquement étendre le DraggableScrollableSheet
+          _scrollableController.animateTo(
+            0.4, // Étendre à la taille maximale
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeInOut,
+          );
+
+          // Center the map on the coordinates
+          mapController.animateCamera(
+            CameraUpdate.newLatLng(position),
+          );
+
+          // Clear previous markers and add a new marker with the place name
+          _markers.clear();
+          _addMarker(position, placeName); // Add the marker with the place name
+
+          // Fetch current weather and forecast
+          fetchCurrentWeather(position);
+          _fetchWeatherForecast(position.latitude, position.longitude);
+
+          print("Place name: $placeName");
+        } else {
+          print('No place name found for the given coordinates.');
+        }
+      } else {
+        print('Failed to fetch place name. Status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      print("Error occurred while getting the place name: $e");
+    }
+  }
+
+
+// Method to fetch weather data and update instance properties using LatLng object
+  Future<void> fetchCurrentWeather(LatLng position) async {
+    const String weatherAPIApiKey =
+        '6a5fdf1096094ee3812233148240310'; // Replace with your actual API key
+
+    // Extract latitude and longitude from the LatLng object
+    final String url =
+        'http://api.weatherapi.com/v1/current.json?key=$weatherAPIApiKey&q=${position.latitude},${position.longitude}';
+
+    final response = await http.get(Uri.parse(url));
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+
+      setState(() {
+        _locationName = data['location']['name'] +
+            ", " +
+            data['location']['region'] +
+            ", " +
+            data['location']['country'];
+        _temperature = data['current']['temp_c']; // Update temperature property
+        _conditionText = data['current']['condition']
+            ['text']; // Update conditionText property
+      });
+    } else {
+      throw Exception('Échec du chargement des données météorologiques');
+    }
   }
 
   Future<void> _navigateToSearchPage() async {
@@ -249,6 +376,9 @@ class MapScreenState extends State<MapScreen> {
         setState(() {
           _forecastData = json.decode(response.body); // Stocker la réponse JSON
         });
+        print('====================================================================================') ;
+        print(_forecastData) ;
+
       } else {
         throw Exception('Failed to load forecast');
       }
@@ -272,10 +402,18 @@ class MapScreenState extends State<MapScreen> {
             onMapCreated: _onMapCreated,
             zoomControlsEnabled: false,
             initialCameraPosition: CameraPosition(
-              target: _center,
+              target: _currentPosition ?? LatLng(0, 0),
+              // Set to current location or a default
               zoom: 11.0,
             ),
-            markers: _markers, // Add markers to the map
+            markers: _markers,
+            // Display markers
+            onLongPress: (LatLng position) {
+              // Handle long press and get latitude/longitude
+              _getPlaceName(position);
+              print(
+                  "Latitude: ${position.latitude}, Longitude: ${position.longitude}");
+            },
           ),
           // Zoom in/out controls
           Positioned(
@@ -502,7 +640,7 @@ class MapScreenState extends State<MapScreen> {
                                     children: [
                                       Icon(WeatherIcons.rain),
                                       SizedBox(width: 8),
-                                      Text('Precipitations'),
+                                      Text('Precipitation'),
                                     ],
                                   ),
                                 ];
