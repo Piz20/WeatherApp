@@ -1,6 +1,6 @@
-# share
+# WeatherApp
 
-A simple app to share subjects with people around you.
+A simple app to get access climate info.
 
 ## Getting Started
 
